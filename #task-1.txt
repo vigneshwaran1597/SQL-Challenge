@@ -1,0 +1,162 @@
+#task-1
+SELECT DISTINCT market FROM dim_customer
+where customer="Atliq Exclusive"
+and region="APAC"
+
+#task -2 
+
+with	cte1 as (SELECT distinct d.product_code FROM dim_product d
+join fact_manufacturing_cost fmc 
+on d.product_code=fmc.product_code
+where cost_year=2020
+group by product_code), 
+
+	cte2 as 
+(SELECT distinct d.product_code FROM dim_product d
+join fact_manufacturing_cost fmc 
+on d.product_code=fmc.product_code
+where cost_year=2021
+group by product_code),
+
+	cte3 as (select (select count(*) from cte1) as count_20, 
+(select count(*) from cte2) as count_21)
+
+select *, (Count_21-Count_20)*100/Count_20 as Percentage_chg from cte3
+
+#task-3
+SELECT Segment, count(*) as product_count
+FROM dim_product
+group by segment 
+order by product_count DESC
+
+#task-4
+with cte1 as 
+(SELECT segment, count(*) as product_count_2021
+FROM dim_product d
+Join fact_manufacturing_cost fmc
+on d.product_code=fmc.product_code
+Where cost_year=2021
+group by segment
+order by Product_count_2021 DESC),
+
+cte2 as 
+(SELECT segment, count(*) as product_count_2020 FROM dim_product d
+Join fact_manufacturing_cost fmc
+on d.product_code=fmc.product_code
+Where cost_year=2020
+group by segment
+order by product_count_2020 DESC)
+
+select a.segment, product_count_2021, product_count_2020, 
+(Product_count_2021-product_count_2020) as Difference from cte1 a
+join cte2 b
+on a.segment=b.segment
+
+#task-5
+SELECT 
+    fmc.product_code,
+    d.product, 
+    fmc.manufacturing_cost, d.variant,
+    fmc.cost_year
+FROM fact_manufacturing_cost fmc
+join dim_product d
+on fmc.product_code=d.product_code
+order by manufacturing_cost desc
+
+AQ HOME Allin1 Gen 2 - Highest Manufacturing cost
+AQ Master wired x1 Ms - Lowest Manufacturing cost
+
+#task-6
+SELECT d.customer_code, customer, pre_invoice_discount_pct 
+FROM dim_customer d
+join fact_pre_invoice_deductions pre
+on d.customer_code=pre.customer_code
+where market="india"
+and fiscal_year="2021"
+order by pre_invoice_discount_pct desc
+limit 5 
+
+#task-7
+with cte1 as (SELECT 
+	monthname(date) as Month, year(date) as Year,
+    s.fiscal_year,
+    (sold_quantity*gross_price) as gross_sales_amount
+FROM fact_sales_monthly s
+	join fact_gross_price g
+on s.product_code=g.product_code and 
+s.fiscal_year=g.fiscal_year
+	join dim_customer c
+on s.customer_code=c.customer_code
+where customer="Atliq Exclusive")
+
+select 
+	Month, Year, Round(sum(gross_sales_amount)/1000000,2) as gross_sale_amount_mln
+from cte1 
+group by Month, Year
+order by gross_sale_amount_mln DESC
+
+#task-8
+with cte1 as (SELECT date, month(date_add(date,interval 4 month)) AS fiscal_month, 
+fiscal_year, sold_quantity
+FROM fact_sales_monthly s)
+
+select 
+case 
+    when fiscal_month in (1,2,3) then "Q1"
+    when fiscal_month in (4,5,6) then "Q2"
+    when fiscal_month in (7,8,9) then "Q3"
+    else "Q4"
+end as Quater,
+round(sum(sold_quantity)/1000000,2) as total_sold_quanity_in_millions 
+from cte1
+WHERE fiscal_year = 2020
+GROUP BY Quater
+ORDER BY total_sold_quanity_in_millions DESC;
+
+#task-10
+with cte1 as (SELECT s.product_code, sum(sold_quantity) as total_sold_quantity FROM fact_sales_monthly s
+join dim_product d
+on s.product_code=d.product_code
+where fiscal_year=2021
+group by s.product_code
+),
+
+cte2 as (select division, c.product_code, total_sold_quantity, product from Dim_product d
+join cte1 c
+on d.product_code=c.product_code),
+
+cte3 as (select *, dense_rank() over(partition by division order by total_sold_quantity DESC) as rnk
+from cte2) 
+
+select*from cte3 where rnk<=3
+
+#task-9
+with cte1 as (SELECT d.channel, sold_quantity, s.fiscal_year, s.product_code FROM dim_customer d
+join fact_sales_monthly s
+on d.customer_code=s.customer_code),
+
+cte2 as (select a.channel, (sold_quantity*gross_price) as gross_sales_amount from cte1 a
+join fact_gross_price g
+on a.product_code=g.product_code
+and a.fiscal_year=g.fiscal_year
+where a.fiscal_year=2020)
+
+select Channel, Round(Sum(gross_sales_amount)/1000000,1) as gross_sales_mln from cte2
+group by channel
+
+
+
+
+
+Additional
+SELECT 
+s.product_code, s.fiscal_year, 
+(sold_quantity*gross_price) as gross_sales_amount
+FROM fact_sales_monthly s
+join fact_gross_price g
+on s.product_code=g.product_code 
+and s.fiscal_year=g.fiscal_year
+
+
+select *, (Count_21-Count_20)*100/Count_20 as Percentage_chg 
+from cte5
